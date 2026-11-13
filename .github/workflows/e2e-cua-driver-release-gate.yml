@@ -1,5 +1,6 @@
 name: "E2E: Cua Driver release gate"
 
+# Fork CI verification for trycua/cua#7617.
 # The desktop E2E lanes the stable tag gate runs (Linux, Windows, macOS hosted
 # native, standalone browsers), WITHOUT publishing anything. Two sizes:
 #
