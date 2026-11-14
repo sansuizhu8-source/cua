@@ -1,6 +1,9 @@
 name: Fork macOS checks for canceled drag
 on:
   workflow_dispatch:
+  push:
+    branches: [ci/macos-canceled-drag-adaf2665]
+    paths: [.github/workflows/e2e-cua-driver-release-gate.yml]
 permissions:
   contents: read
 env:
@@ -8,7 +11,47 @@ env:
   CUA_TELEMETRY: '0'
   DO_NOT_TRACK: '1'
 jobs:
+  unit:
+    if: github.event_name == 'push'
+    name: macOS 15 Rust build and unit tests
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: adaf2665d92fb40c0a9a59568b9237edb015fca2
+          persist-credentials: false
+      - name: Verify PR source
+        run: test "$(git rev-parse HEAD)" = "$PR_SHA"
+      - uses: dtolnay/rust-toolchain@4716b85f2fac3e324e64fa2810f6b5c3905760a5
+        with:
+          components: clippy
+      - name: Clippy driver workspace
+        working-directory: libs/cua-driver/rust
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Platform unit tests
+        working-directory: libs/cua-driver/rust
+        env:
+          CUA_TEST_ALLOW_CLIPBOARD: '1'
+        run: cargo test --locked -p platform-macos --lib
+      - name: Core and testkit unit tests
+        working-directory: libs/cua-driver/rust
+        run: |
+          cargo test --locked -p cua-driver-core --lib
+          cargo test --locked -p cua-driver-testkit --lib
+      - name: Protocol and status CLI contracts
+        working-directory: libs/cua-driver/rust
+        env:
+          CUA_TEST_REQUIRE_DRIVER_BIN: '1'
+          CUA_TEST_DRIVER_STDERR: '1'
+        run: |
+          cargo build --locked -p cua-driver
+          cargo test --locked -p cua-driver --test protocol_schema_test --test status_pid_file_cli_test
+      - name: Hermetic E2E tests
+        working-directory: libs/cua-driver/rust
+        run: cargo test --locked -p cua-driver-e2e
   browser:
+    if: github.event_name == 'workflow_dispatch'
     name: macOS 26 Chrome and Edge E2E
     runs-on: macos-26
     timeout-minutes: 180
