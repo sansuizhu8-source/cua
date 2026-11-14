@@ -13,8 +13,8 @@ env:
 jobs:
   unit:
     if: github.event_name == 'push'
-    name: macOS 15 Rust build and unit tests
-    runs-on: macos-15
+    name: Upstream macOS Rust build and unit tests
+    runs-on: macos-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -22,8 +22,10 @@ jobs:
           ref: adaf2665d92fb40c0a9a59568b9237edb015fca2
           persist-credentials: false
       - name: Verify PR source
+        id: source
         run: test "$(git rev-parse HEAD)" = "$PR_SHA"
-      - uses: dtolnay/rust-toolchain@4716b85f2fac3e324e64fa2810f6b5c3905760a5
+      - id: toolchain
+        uses: dtolnay/rust-toolchain@4716b85f2fac3e324e64fa2810f6b5c3905760a5
         with:
           components: clippy
       - name: Clippy driver workspace
@@ -35,11 +37,13 @@ jobs:
           CUA_TEST_ALLOW_CLIPBOARD: '1'
         run: cargo test --locked -p platform-macos --lib
       - name: Core and testkit unit tests
+        if: ${{ !cancelled() && steps.source.outcome == 'success' && steps.toolchain.outcome == 'success' }}
         working-directory: libs/cua-driver/rust
         run: |
           cargo test --locked -p cua-driver-core --lib
           cargo test --locked -p cua-driver-testkit --lib
       - name: Protocol and status CLI contracts
+        if: ${{ !cancelled() && steps.source.outcome == 'success' && steps.toolchain.outcome == 'success' }}
         working-directory: libs/cua-driver/rust
         env:
           CUA_TEST_REQUIRE_DRIVER_BIN: '1'
@@ -48,6 +52,7 @@ jobs:
           cargo build --locked -p cua-driver
           cargo test --locked -p cua-driver --test protocol_schema_test --test status_pid_file_cli_test
       - name: Hermetic E2E tests
+        if: ${{ !cancelled() && steps.source.outcome == 'success' && steps.toolchain.outcome == 'success' }}
         working-directory: libs/cua-driver/rust
         run: cargo test --locked -p cua-driver-e2e
   browser:
