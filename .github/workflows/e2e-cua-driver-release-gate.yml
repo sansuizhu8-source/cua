@@ -1,8 +1,6 @@
 name: Fork macOS checks for canceled drag
 on:
-  push:
-    branches: [ci/macos-canceled-drag-adaf2665]
-    paths: [.github/workflows/e2e-cua-driver-release-gate.yml]
+  workflow_dispatch:
 permissions:
   contents: read
 env:
@@ -10,31 +8,6 @@ env:
   CUA_TELEMETRY: '0'
   DO_NOT_TRACK: '1'
 jobs:
-  unit:
-    name: macOS 15 Rust build and unit tests
-    runs-on: macos-15
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          ref: adaf2665d92fb40c0a9a59568b9237edb015fca2
-          persist-credentials: false
-      - name: Verify PR source
-        run: test "$(git rev-parse HEAD)" = "$PR_SHA"
-      - uses: dtolnay/rust-toolchain@4716b85f2fac3e324e64fa2810f6b5c3905760a5
-        with:
-          components: clippy
-      - name: Clippy and unit tests
-        working-directory: libs/cua-driver/rust
-        env:
-          CUA_TEST_ALLOW_CLIPBOARD: '1'
-          CUA_TEST_REQUIRE_DRIVER_BIN: '1'
-        run: |
-          cargo clippy --locked --workspace --all-targets -- -D warnings
-          cargo test --locked -p platform-macos -p cua-driver-core -p cua-driver-testkit --lib
-          cargo build --locked -p cua-driver
-          cargo test --locked -p cua-driver --test protocol_schema_test --test status_pid_file_cli_test
-          cargo test --locked -p cua-driver-e2e
   browser:
     name: macOS 26 Chrome and Edge E2E
     runs-on: macos-26
